@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#101414">
+    <title>Prompt Shelf</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <a class="brand" href="#" aria-label="Prompt Shelf home">
+          <span class="brand-mark" aria-hidden="true">{ }</span>
+          <span>prompt<span class="brand-light">shelf</span></span>
+        </a>
+        <span class="local-status"><span class="status-dot"></span> LOCAL STORAGE</span>
+      </header>
+
+      <section class="intro" aria-labelledby="page-title">
+        <p class="eyebrow">YOUR PERSONAL PROMPT LIBRARY</p>
+        <h1 id="page-title">Keep the good ones.</h1>
+        <p class="intro-copy">A tidy place for the prompts you reach for again and again.</p>
+      </section>
+
+      <section class="workspace" aria-label="Prompt library">
+        <form class="prompt-form" id="prompt-form">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">NEW ENTRY</p>
+              <h2>Add a prompt</h2>
+            </div>
+            <span class="form-index">01 / 02</span>
+          </div>
+
+          <label for="prompt-title">Title</label>
+          <input
+            id="prompt-title"
+            name="title"
+            type="text"
+            placeholder="e.g. Explain a tricky concept"
+            maxlength="100"
+            required
+          >
+
+          <label for="prompt-content">Prompt</label>
+          <textarea
+            id="prompt-content"
+            name="content"
+            rows="7"
+            placeholder="Write or paste your prompt here..."
+            required
+          ></textarea>
+
+          <button class="save-button" type="submit">
+            <span aria-hidden="true">+</span> Save prompt
+          </button>
+        </form>
+
+        <section class="saved-prompts" aria-labelledby="saved-heading">
+          <div class="section-heading list-heading">
+            <div>
+              <p class="eyebrow">YOUR COLLECTION</p>
+              <h2 id="saved-heading">Saved prompts</h2>
+            </div>
+            <span class="form-index">02 / 02</span>
+          </div>
+          <div class="prompt-list" id="prompt-list" aria-live="polite"></div>
+        </section>
+      </section>
+
+      <footer class="footer-note"><span>NO CLOUD. NO FUSS.</span> Your prompts stay in this browser.</footer>
+    </main>
+  </body>
+</html>
