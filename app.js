@@ -12,6 +12,9 @@ function readPrompts() {
     ).map((prompt) => ({
       ...prompt,
       rating: Number.isInteger(prompt.rating) && prompt.rating >= 0 && prompt.rating <= 5 ? prompt.rating : 0,
+      notes: Array.isArray(prompt.notes) ? prompt.notes.filter((note) =>
+        note && typeof note.id === "string" && typeof note.content === "string"
+      ) : [],
     })) : [];
   } catch {
     return [];
@@ -31,6 +34,66 @@ function updateRatingDisplay(card, rating) {
     input.nextElementSibling.classList.toggle("is-selected", Number(input.value) <= rating);
   });
   card.querySelector(".clear-rating").hidden = rating === 0;
+}
+
+function makeNoteEditor(prompt, note = null) {
+  const editor = document.createElement("div");
+  editor.className = "note-editor";
+
+  const textarea = document.createElement("textarea");
+  textarea.rows = 3;
+  textarea.maxLength = 2000;
+  textarea.placeholder = "Write a note...";
+  textarea.setAttribute("aria-label", `Note for ${prompt.title}`);
+  textarea.value = note ? note.content : "";
+  textarea.required = true;
+
+  const actions = document.createElement("div");
+  actions.className = "note-actions";
+
+  const saveButton = document.createElement("button");
+  saveButton.className = "note-save-button";
+  saveButton.type = "button";
+  saveButton.textContent = "Save note";
+  saveButton.addEventListener("click", () => {
+    const content = textarea.value.trim();
+    if (!content) {
+      textarea.focus();
+      return;
+    }
+
+    if (note) {
+      note.content = content;
+      note.updatedAt = Date.now();
+    } else {
+      prompt.notes.push({
+        id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        content,
+        updatedAt: Date.now(),
+      });
+    }
+    savePrompts();
+    renderPrompts();
+  });
+
+  actions.append(saveButton);
+
+  if (note) {
+    const deleteButton = document.createElement("button");
+    deleteButton.className = "note-delete-button";
+    deleteButton.type = "button";
+    deleteButton.textContent = "Delete";
+    deleteButton.setAttribute("aria-label", `Delete note for ${prompt.title}`);
+    deleteButton.addEventListener("click", () => {
+      prompt.notes = prompt.notes.filter((item) => item.id !== note.id);
+      savePrompts();
+      renderPrompts();
+    });
+    actions.append(deleteButton);
+  }
+
+  editor.append(textarea, actions);
+  return editor;
 }
 
 function makePromptCard(prompt) {
@@ -88,6 +151,29 @@ function makePromptCard(prompt) {
   });
   ratingControl.append(ratingGroup, clearRating);
 
+  const notesSection = document.createElement("section");
+  notesSection.className = "prompt-notes";
+  const notesHeading = document.createElement("h4");
+  notesHeading.textContent = "Notes";
+  notesSection.append(notesHeading);
+
+  const addNoteButton = document.createElement("button");
+  addNoteButton.className = "add-note-button";
+  addNoteButton.type = "button";
+  addNoteButton.textContent = "Add note";
+  addNoteButton.setAttribute("aria-label", `Add note to ${prompt.title}`);
+  addNoteButton.addEventListener("click", () => {
+    if (!notesSection.querySelector(".new-note-editor")) {
+      const editor = makeNoteEditor(prompt);
+      editor.classList.add("new-note-editor");
+      notesSection.insertBefore(editor, addNoteButton);
+      editor.querySelector("textarea").focus();
+    }
+  });
+  notesSection.append(addNoteButton);
+
+  prompt.notes.forEach((note) => notesSection.insertBefore(makeNoteEditor(prompt, note), addNoteButton));
+
   const deleteButton = document.createElement("button");
   deleteButton.className = "delete-button";
   deleteButton.type = "button";
@@ -99,7 +185,7 @@ function makePromptCard(prompt) {
     renderPrompts();
   });
 
-  card.append(title, preview, ratingControl, deleteButton);
+  card.append(title, preview, ratingControl, notesSection, deleteButton);
   updateRatingDisplay(card, prompt.rating);
   return card;
 }
@@ -134,6 +220,7 @@ form.addEventListener("submit", (event) => {
     title,
     content,
     rating: 0,
+    notes: [],
   });
   savePrompts();
   renderPrompts();

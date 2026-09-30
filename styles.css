@@ -354,6 +354,61 @@ textarea {
   display: none;
 }
 
+.prompt-notes {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.prompt-notes h4 {
+  margin: 0 0 9px;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 400;
+}
+
+.note-editor {
+  margin-bottom: 10px;
+}
+
+.note-editor textarea {
+  min-height: 68px;
+  margin-bottom: 7px;
+  padding: 9px 10px;
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.note-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.note-save-button,
+.note-delete-button,
+.add-note-button {
+  min-height: 30px;
+  padding: 5px 9px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.note-save-button:hover,
+.add-note-button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.note-delete-button:hover {
+  border-color: rgb(255 140 126 / 40%);
+  color: var(--danger);
+}
+
 .delete-button {
   position: absolute;
   top: 11px;
