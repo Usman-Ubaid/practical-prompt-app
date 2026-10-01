@@ -44,6 +44,16 @@
             required
           >
 
+          <label for="prompt-model">Model</label>
+          <input
+            id="prompt-model"
+            name="model"
+            type="text"
+            placeholder="e.g. GPT-4.1"
+            maxlength="100"
+            required
+          >
+
           <label for="prompt-content">Prompt</label>
           <textarea
             id="prompt-content"
@@ -53,6 +63,7 @@
             required
           ></textarea>
 
+          <p class="form-error" id="form-error" role="alert" hidden></p>
           <button class="save-button" type="submit">
             <span aria-hidden="true">+</span> Save prompt
           </button>
