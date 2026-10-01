@@ -75,8 +75,13 @@
               <p class="eyebrow">YOUR COLLECTION</p>
               <h2 id="saved-heading">Saved prompts</h2>
             </div>
-            <span class="form-index">02 / 02</span>
+            <div class="collection-actions">
+              <button class="data-button" id="export-prompts" type="button">Export</button>
+              <button class="data-button" id="import-prompts" type="button">Import</button>
+              <input id="import-file" type="file" accept="application/json,.json" hidden>
+            </div>
           </div>
+          <p class="data-status" id="data-status" role="status" aria-live="polite" hidden></p>
           <div class="prompt-list" id="prompt-list" aria-live="polite"></div>
         </section>
       </section>

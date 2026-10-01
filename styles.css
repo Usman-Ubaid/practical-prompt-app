@@ -245,6 +245,39 @@ textarea {
   margin-bottom: 18px;
 }
 
+.collection-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.data-button {
+  min-height: 32px;
+  padding: 5px 10px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  color: var(--muted);
+  background: var(--surface);
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.data-button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.data-status {
+  margin: -7px 0 13px;
+  color: var(--accent);
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.data-status.is-error {
+  color: var(--danger);
+}
+
 .prompt-list {
   display: grid;
   gap: 10px;

@@ -5,6 +5,12 @@ const modelInput = document.querySelector("#prompt-model");
 const contentInput = document.querySelector("#prompt-content");
 const promptList = document.querySelector("#prompt-list");
 const formError = document.querySelector("#form-error");
+const importButton = document.querySelector("#import-prompts");
+const exportButton = document.querySelector("#export-prompts");
+const importFile = document.querySelector("#import-file");
+const dataStatus = document.querySelector("#data-status");
+const BACKUP_KEY = `${STORAGE_KEY}-backup`;
+const EXPORT_VERSION = 1;
 
 function validateModelName(modelName) {
   if (typeof modelName !== "string" || !modelName.trim()) {
@@ -42,6 +48,193 @@ function validateMetadata(metadata) {
   }
   return metadata;
 }
+
+function validatePrompt(prompt, index = 0) {
+  const label = `Prompt ${index + 1}`;
+  if (!prompt || typeof prompt !== "object" || Array.isArray(prompt)) {
+    throw new Error(`${label} must be an object.`);
+  }
+  if (typeof prompt.id !== "string" || !prompt.id.trim()) {
+    throw new Error(`${label} must have a non-empty ID.`);
+  }
+  if (typeof prompt.title !== "string" || !prompt.title.trim() || prompt.title.length > 100) {
+    throw new Error(`${label} must have a title of 1 to 100 characters.`);
+  }
+  if (typeof prompt.content !== "string" || !prompt.content.trim()) {
+    throw new Error(`${label} must have non-empty content.`);
+  }
+  validateMetadata(prompt.metadata);
+  if (!Number.isInteger(prompt.rating) || prompt.rating < 0 || prompt.rating > 5) {
+    throw new Error(`${label} rating must be an integer from 0 to 5.`);
+  }
+  if (!Array.isArray(prompt.notes)) {
+    throw new Error(`${label} notes must be an array.`);
+  }
+  const noteIds = new Set();
+  prompt.notes.forEach((note, noteIndex) => {
+    if (!note || typeof note.id !== "string" || !note.id.trim() || noteIds.has(note.id) ||
+      typeof note.content !== "string" || !note.content.trim() || !Number.isFinite(note.updatedAt)) {
+      throw new Error(`${label} note ${noteIndex + 1} is invalid.`);
+    }
+    noteIds.add(note.id);
+  });
+  return prompt;
+}
+
+function validatePromptCollection(value) {
+  if (!Array.isArray(value)) {
+    throw new Error("Prompts must be an array.");
+  }
+  const ids = new Set();
+  value.forEach((prompt, index) => {
+    validatePrompt(prompt, index);
+    if (ids.has(prompt.id)) {
+      throw new Error(`Duplicate prompt ID found: ${prompt.id}`);
+    }
+    ids.add(prompt.id);
+  });
+  return value;
+}
+
+function getStatistics(collection) {
+  const ratings = collection.map((prompt) => prompt.rating).filter((rating) => rating > 0);
+  const modelCounts = new Map();
+  collection.forEach((prompt) => {
+    const model = prompt.metadata.model;
+    modelCounts.set(model, (modelCounts.get(model) || 0) + 1);
+  });
+  const mostUsedModel = [...modelCounts.entries()].sort((first, second) => second[1] - first[1])[0]?.[0] || null;
+  return {
+    totalPrompts: collection.length,
+    averageRating: ratings.length ? ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length : 0,
+    mostUsedModel,
+  };
+}
+
+function validateExport(data) {
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    throw new Error("The file must contain a JSON object.");
+  }
+  if (data.version !== EXPORT_VERSION) {
+    throw new Error(`Unsupported export version: ${String(data.version)}.`);
+  }
+  if (!isValidIsoTimestamp(data.exportedAt)) {
+    throw new Error("Export timestamp is missing or invalid.");
+  }
+  validatePromptCollection(data.prompts);
+  if (!data.stats || typeof data.stats !== "object" || Array.isArray(data.stats) ||
+    data.stats.totalPrompts !== data.prompts.length || !Number.isFinite(data.stats.averageRating) ||
+    (data.stats.mostUsedModel !== null && typeof data.stats.mostUsedModel !== "string")) {
+    throw new Error("Export statistics are missing or invalid.");
+  }
+  return data;
+}
+
+function showDataStatus(message, isError = false) {
+  dataStatus.textContent = message;
+  dataStatus.classList.toggle("is-error", isError);
+  dataStatus.hidden = false;
+}
+
+function exportPrompts() {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  const collection = validatePromptCollection(raw ? JSON.parse(raw) : []);
+  const data = {
+    version: EXPORT_VERSION,
+    exportedAt: new Date().toISOString(),
+    stats: getStatistics(collection),
+    prompts: collection,
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  const timestamp = data.exportedAt.replace(/[:.]/g, "-");
+  link.href = url;
+  link.download = `prompt-shelf-${timestamp}.json`;
+  link.click();
+  URL.revokeObjectURL(url);
+  showDataStatus(`Exported ${collection.length} prompt${collection.length === 1 ? "" : "s"}.`);
+}
+
+async function importPrompts(file) {
+  const imported = validateExport(JSON.parse(await file.text())).prompts;
+  let mergeSummary = { replaced: 0, kept: 0 };
+  const replaceAll = window.confirm(
+    `Import ${imported.length} prompt${imported.length === 1 ? "" : "s"}.\n\n` +
+    "Choose OK to replace your entire collection. Choose Cancel to merge."
+  );
+  const existingRaw = localStorage.getItem(STORAGE_KEY);
+  const existing = validatePromptCollection(existingRaw ? JSON.parse(existingRaw) : []);
+  let nextPrompts;
+
+  if (replaceAll) {
+    nextPrompts = imported;
+  } else {
+    const byId = new Map(existing.map((prompt) => [prompt.id, prompt]));
+    let replaced = 0;
+    let kept = 0;
+    imported.forEach((prompt) => {
+      const current = byId.get(prompt.id);
+      if (!current) {
+        byId.set(prompt.id, prompt);
+      } else if (window.confirm(
+        `A prompt with ID "${prompt.id}" already exists:\n\n` +
+        `Existing: ${current.title}\nImported: ${prompt.title}\n\n` +
+        "Choose OK to replace the existing prompt. Choose Cancel to keep it."
+      )) {
+        byId.set(prompt.id, prompt);
+        replaced += 1;
+      } else {
+        kept += 1;
+      }
+    });
+    nextPrompts = [...byId.values()];
+    mergeSummary = { replaced, kept };
+  }
+
+  validatePromptCollection(nextPrompts);
+  localStorage.setItem(BACKUP_KEY, JSON.stringify({ backedUpAt: new Date().toISOString(), data: existingRaw }));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(nextPrompts));
+    prompts = nextPrompts;
+    renderPrompts();
+  } catch (error) {
+    prompts = existing;
+    let rollbackStatus = "your original data was restored";
+    try {
+      if (existingRaw === null) localStorage.removeItem(STORAGE_KEY);
+      else localStorage.setItem(STORAGE_KEY, existingRaw);
+    } catch (rollbackError) {
+      rollbackStatus = `the UI was restored, but localStorage rollback failed: ${rollbackError.message}`;
+    }
+    renderPrompts();
+    throw new Error(`Import failed; ${rollbackStatus}. ${error.message}`);
+  }
+
+  const detail = replaceAll ? "Collection replaced." :
+    `Merged; ${mergeSummary.replaced} conflict${mergeSummary.replaced === 1 ? "" : "s"} replaced, ${mergeSummary.kept} kept.`;
+  showDataStatus(`Imported ${imported.length} prompt${imported.length === 1 ? "" : "s"}. ${detail}`);
+}
+
+exportButton.addEventListener("click", () => {
+  try {
+    exportPrompts();
+  } catch (error) {
+    showDataStatus(`Export failed: ${error.message}`, true);
+  }
+});
+
+importButton.addEventListener("click", () => importFile.click());
+importFile.addEventListener("change", async () => {
+  const file = importFile.files[0];
+  importFile.value = "";
+  if (!file) return;
+  try {
+    await importPrompts(file);
+  } catch (error) {
+    showDataStatus(`Import failed: ${error.message}`, true);
+  }
+});
 
 function estimateTokens(text, isCode) {
   if (typeof text !== "string") {
